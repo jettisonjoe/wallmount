@@ -1,5 +1,24 @@
+#!/usr/bin/env python
+
+
+import socket
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
+
+
+# TODO: Read in a config file.
+# TODO: Clone or update the source repo.
+# TODO: Build the website to deploy.
+# TODO: Update the last-updated time.
+# TODO: Return None if successful.
+# TODO: Return useful messages on failure.
+
+# TODO: Handle HTTP requests and XML-RPC requests simultaneously.
+# TODO: Add p5js to the repository static files.
+# TODO: Handle requests for last-updated time.
+# TODO: Handle requests for the sketch page.
+
+# TODO: Figure out why this doesn't work between machines.
 
 
 class WallmountRequestHandler(SimpleXMLRPCRequestHandler):
@@ -14,7 +33,7 @@ class WallmountFunctions:
 
 
 def main():
-	server = SimpleXMLRPCServer(("localhost", 8000),
+	server = SimpleXMLRPCServer((socket.gethostname(), 8000),
                             requestHandler=WallmountRequestHandler)
 	server.register_instance(WallmountFunctions())
 	print 'Starting XML-RPC server.'
