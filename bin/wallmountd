@@ -8,7 +8,7 @@ class WallmountRequestHandler(SimpleXMLRPCRequestHandler):
 
 class WallmountFunctions:
 
-	def deploy(sketch_name):
+	def deploy_sketch(self, sketch_name):
 		# TODO: Attempt to deploy the sketch.
 		return 'If the server worked, we would have deployed \'%s\'.' % sketch_name
 
@@ -17,6 +17,7 @@ def main():
 	server = SimpleXMLRPCServer(("localhost", 8000),
                             requestHandler=WallmountRequestHandler)
 	server.register_instance(WallmountFunctions())
+	print 'Starting XML-RPC server.'
 	server.serve_forever()
 
 
