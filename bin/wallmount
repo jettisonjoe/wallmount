@@ -1,0 +1,43 @@
+#!/usr/bin/env python
+
+
+SERVER_URL = 'http://192.168.1.39/wallmount'
+
+
+import socket
+import sys
+import xmlrpclib
+
+
+def print_usage_and_exit():
+	print '\n' \
+	      'wallmount [sketch_name]\n' \
+	      '\n' \
+	      'sketch_name: Filename of a p5js script in the configured repo.\n'
+	sys.exit()
+
+
+def deploy(sketch_name):
+	print 'Attempting to deploy \'%s\'.' % sketch_name
+	server = xmlrpclib.Server(SERVER_URL)
+	try:
+		response = server.deploy_sketch(sketch_name)
+	except socket.error as e:
+		print 'Unable to connect to wallmount server at \'%s\':\n' \
+		      '%s' % (SERVER_URL, e)
+		sys.exit()
+	if response is not None:
+		print 'Connected to wallmount server, but unable to deploy:\n' \
+		      '%s' % response
+		sys.exit()
+	print "Deploy appeared successful."
+
+
+def main(argv):
+	if len(argv) is not 2:
+		print_usage_and_exit()
+	deploy(argv[1])
+
+
+if __name__ == '__main__':
+	main(sys.argv)
