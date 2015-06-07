@@ -25,7 +25,8 @@ The server program is designed to run as a daemon in a linux-like environment.
 It serves a website that embeds the specified processing sketch. It listens on
 two separate ports; one for XML-RPC requests from the CLI tool, and the other
 for HTTP requests from the Chromebox (or similar) being used to drive the wall-
-mounted display.
+mounted display. The sketch to be served should be checked into a git repo which
+can be specified in the server's config file.
 
 The server's responsibilities are:
   * Handle requests from the CLI tool:
