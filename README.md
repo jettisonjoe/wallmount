@@ -10,9 +10,9 @@ uses XML-RPC to connect to the specified server and request a deployment of the
 p5js file named. That file must exist in the git repo configured on the server
 side as the source repo.
 
-'''Shell
+```Shell
 $ wallmount mySketch.js
-'''
+```
 
 In short, the CLI tool's job is to:
   * Connect to server machine via xmlrpc.
