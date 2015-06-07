@@ -1,0 +1,24 @@
+from SimpleXMLRPCServer import SimpleXMLRPCServer
+from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
+
+
+class WallmountRequestHandler(SimpleXMLRPCRequestHandler):
+    rpc_paths = ('/wallmount',)
+
+
+class WallmountFunctions:
+
+	def deploy(sketch_name):
+		# TODO: Attempt to deploy the sketch.
+		return 'If the server worked, we would have deployed \'%s\'.' % sketch_name
+
+
+def main():
+	server = SimpleXMLRPCServer(("localhost", 8000),
+                            requestHandler=WallmountRequestHandler)
+	server.register_instance(WallmountFunctions())
+	server.serve_forever()
+
+
+if __name__ == '__main__':
+	main()
