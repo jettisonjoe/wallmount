@@ -1,13 +1,24 @@
 #!/usr/bin/env python
 
 
+import logging
+import ConfigParser
+import os
 import socket
+import shutil
+import subprocess
+import time
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
 
 
-# TODO: Read in a config file.
-# TODO: Clone or update the source repo.
+CONFIG_FILE = 'wallmountd.conf'
+LOGGER = logging.getLogger('wallmountd')
+RUN_DIR = os.path.join(os.sep, 'var', 'run', 'wallmountd')
+
+logging.basicConfig()
+
+
 # TODO: Build the website to deploy.
 # TODO: Update the last-updated time.
 # TODO: Return None if successful.
@@ -18,26 +29,101 @@ from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
 # TODO: Handle requests for last-updated time.
 # TODO: Handle requests for the sketch page.
 
-# TODO: Figure out why this doesn't work between machines.
+
+class RepoNameError(Exception):
+	"""Raised when an illegal repo name is encountered."""
+
+class RunDirectoryError(Exception):
+	"""Raised if the run directory path exists but isn't a directory."""
+
+
+class WallmountServer(SimpleXMLRPCServer):
+	"""Main class for wallmountd.
+
+	Takes care of setup and instantiation for both the XML-RPC and the web server
+	aspects of wallmountd."""
+
+	def __init__(self, config_file):
+		config = ConfigParser.RawConfigParser()
+		config.read(config_file)
+		self.source_repo_name = _sanitize_repo_name(
+				config.get('Source Repo', 'name'))
+		self.source_repo_path = os.path.join(RUN_DIR,
+				                                 self.source_repo_name)
+		self.source_repo_url = config.get('Source Repo', 'url')
+		
+		self.rpc_server = SimpleXMLRPCServer((socket.gethostname(), 8000),
+				requestHandler=WallmountRequestHandler)
+		self.rpc_server.register_instance(WallmountFunctions)
+
+	def _update_repo(self):
+		"""Brute-force update by deleting and re-cloning the source repo."""
+		
+		# Ensure we don't delete anything outside of our own RUN_DIR.
+		if not os.path.commonprefix(
+				[self.source_repo_path, RUN_DIR]) == RUN_DIR:
+			LOGGER.error('Repo path no longer appears clean. Stopping everything.')
+			raise RepoNameError('Repo not in RUN_DIR.')
+		if os.path.isdir(self.source_repo_path):
+			shutil.rmtree(self.source_repo_path)
+		command = ['git',
+		           'clone',
+		           self.source_repo_url,
+		           self.source_repo_path]
+		return subprocess.call(command)
+
+	def start(self):
+		"""Start services."""
+		
+		print self.source_repo_path
+		print self.source_repo_url
+		_maybe_create_run_dir(RUN_DIR)
+		self._update_repo()
+		# self.rpc_server.serve_forever()
 
 
 class WallmountRequestHandler(SimpleXMLRPCRequestHandler):
-    rpc_paths = ('/wallmount',)
+	"""Request handler for XML-RPC portion of wallmountd."""
+  
+  rpc_paths = ('/wallmount',)
 
 
 class WallmountFunctions:
+	"""Encapsulates wallmountd's XML-RPC API."""
 
 	def deploy_sketch(self, sketch_name):
 		# TODO: Attempt to deploy the sketch.
 		return 'If the server worked, we would have deployed \'%s\'.' % sketch_name
 
 
+def _maybe_create_run_dir(dir):
+	"""Create a run directory if needed."""
+	
+	if os.path.exists(RUN_DIR):
+		if os.path.isdir(RUN_DIR):
+			return
+		raise RunDirectoryError()
+	os.mkdir(dir)
+
+
+def _sanitize_repo_name(name):
+		"""Make sure there are no special characters in the repo name.
+
+		We don't want to accidentally walk up the file tree from our RUN_DIR
+		and delete arbitrary things, so no characters that cause path expansion."""
+
+		if True in [c in name for c in ('./:*$')]:
+			LOGGER.error('Repo names must not contain special characters.')
+			raise RepoNameError('Bad repo name: \'%s\'.' % name)
+		if name in ['wallmount', 'wallmountd', 'www']:
+			LOGGER.error('Repo name conflicts with wallmountd\'s own namespace.')
+			raise RepoNameError('Bad repo name: \'%s\'.' % name)
+		return name
+
+
 def main():
-	server = SimpleXMLRPCServer((socket.gethostname(), 8000),
-                            requestHandler=WallmountRequestHandler)
-	server.register_instance(WallmountFunctions())
-	print 'Starting XML-RPC server.'
-	server.serve_forever()
+	server = WallmountServer(CONFIG_FILE)
+	server.start()
 
 
 if __name__ == '__main__':
