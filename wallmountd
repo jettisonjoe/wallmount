@@ -20,7 +20,7 @@ logging.basicConfig()
 
 
 # TODO: Build the website to deploy.
-# TODO: Update the last-updated time.
+# TODO: Set the last-updated time.
 # TODO: Return None if successful.
 # TODO: Return useful messages on failure.
 
@@ -33,11 +33,12 @@ logging.basicConfig()
 class RepoNameError(Exception):
 	"""Raised when an illegal repo name is encountered."""
 
+
 class RunDirectoryError(Exception):
 	"""Raised if the run directory path exists but isn't a directory."""
 
 
-class WallmountServer(SimpleXMLRPCServer):
+class WallmountServer:
 	"""Main class for wallmountd.
 
 	Takes care of setup and instantiation for both the XML-RPC and the web server

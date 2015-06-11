@@ -18,8 +18,8 @@ def print_usage_and_exit():
 	sys.exit()
 
 
-def deploy(sketch_name):
-	print 'Attempting to deploy \'%s\'.' % sketch_name
+def request_deploy(sketch_name):
+	print 'Requesting deployment of \'%s\'.' % sketch_name
 	server = xmlrpclib.Server(SERVER_URL)
 	try:
 		response = server.deploy_sketch(sketch_name)
@@ -31,13 +31,13 @@ def deploy(sketch_name):
 		print 'Connected to wallmount server, but unable to deploy:\n' \
 		      '%s' % response
 		sys.exit()
-	print "Deploy appeared successful."
+	print "Deployment appeared successful!"
 
 
 def main(argv):
 	if len(argv) is not 2:
 		print_usage_and_exit()
-	deploy(argv[1])
+	request_deploy(argv[1])
 
 
 if __name__ == '__main__':
