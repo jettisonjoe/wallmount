@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# Startup script for wallmountd. See detailed comments in wallmountd.py.
+
+WALLMOUNT_DIR=/usr/local/wallmount
+
+cd $WALLMOUNT_DIR
+. ./venv/bin/activate
+python ./wallmountd.py &
