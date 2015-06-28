@@ -5,12 +5,20 @@
 
 wallmount is a command line tool to deploy p5js sketches in conjunction with a
 companion wallmount server, wallmountd. It controls the server via RPC.
+
+TODO: Remove RPC stuff.
+TODO: Look for .wallmount config file.
+TODO: Generate .wallmount_push_id file.
+TODO: rsync directory to server.
+TODO: Delete .wallmount_push_id file.
+
 """
 
 # SERVER_URL = 'http://192.168.1.39:8000/wallmount'
 SERVER_URL = 'http://localhost:8000/wallmount'
 
 
+import shutil
 import socket
 import sys
 import xmlrpclib

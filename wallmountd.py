@@ -3,44 +3,37 @@
 
 """ wallmountd
 
-wallmountd is a daemon that serves p5js sketches. It is controlled by the
-companion command line utility, 'wallmount' over RPC. The HTTP and RPC
-components listen on separate ports. Because it relies on shell commands (in
-particular, 'git'), wallmountd is designed to work in linux-like environments.
+wallmountd is a daemon that serves p5js sketches. It monitors a project
+directory for changes and sets a last-updated time accordingly. It inserts a
+script into the served index page to enable self-update on the client. It is
+designed to run in a linux-like environment.
 
-TODO: Build the website to deploy.
+TODO: Monitor project push id file for changes.
+TODO: Insert update script into the served index page.
 TODO: Set the last-updated time.
-TODO: Return None if successful.
-TODO: Return useful messages on failure.
 TODO: Save and restore state.
-
-TODO: Handle HTTP requests and XML-RPC requests simultaneously.
-TODO: Add p5js to the repository static files.
 TODO: Handle requests for last-updated time.
 TODO: Handle requests for the sketch page.
 """
 
+import datetime
 import logging
-import ConfigParser
 import os
-import socket
 import shutil
 import subprocess
 import time
-from SimpleXMLRPCServer import SimpleXMLRPCServer
-from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
 
 
-CONFIG_FILE = 'wallmountd.conf'
+INDEX_PAGE = 'index.html'
 LOGGER = logging.getLogger('wallmountd')
-RUN_DIR = os.path.join(os.sep, 'var', 'run', 'wallmountd')
-
+ROOT_DIR = os.path.join(os.sep, 'var', 'run', 'wallmountd', 'www')
+PROJECT_SUBDIR = 'sketch'
+PUSH_ID_FILE = os.path.join(os.sep,
+										        ROOT_DIR,
+										        PROJECT_SUBDIR,
+										        '.wallmount_push_id')
 
 logging.basicConfig()
-
-
-class RepoNameError(Exception):
-	"""Raised when an illegal repo name is encountered."""
 
 
 class RunDirectoryError(Exception):
@@ -50,21 +43,11 @@ class RunDirectoryError(Exception):
 class WallmountServer(object):
 	"""Main class for wallmountd.
 
-	Takes care of setup and instantiation for both the XML-RPC and the web server
-	aspects of wallmountd."""
+	Takes care of setup and instantiation for both the file monitoring and the web
+	server aspects of wallmountd."""
 
 	def __init__(self, config_file):
-		config = ConfigParser.RawConfigParser()
-		config.read(config_file)
-		self.source_repo_name = _sanitize_repo_name(
-				config.get('Source Repo', 'name'))
-		self.source_repo_path = os.path.join(RUN_DIR,
-				                                 self.source_repo_name)
-		self.source_repo_url = config.get('Source Repo', 'url')
-		
-		self.rpc_server = SimpleXMLRPCServer((socket.gethostname(), 8000),
-				requestHandler=WallmountRequestHandler)
-		self.rpc_server.register_instance(WallmountFunctions)
+		self.last_push_id = get_push_id()
 
 	def _update_repo(self):
 		"""Brute-force update by deleting and re-cloning the source repo."""
@@ -92,20 +75,6 @@ class WallmountServer(object):
 		# self.rpc_server.serve_forever()
 
 
-class WallmountRequestHandler(SimpleXMLRPCRequestHandler):
-	"""Request handler for XML-RPC portion of wallmountd."""
-  
-  rpc_paths = ('/wallmount',)
-
-
-class WallmountFunctions:
-	"""Encapsulates wallmountd's XML-RPC API."""
-
-	def deploy_sketch(self, sketch_name):
-		# TODO: Attempt to deploy the sketch.
-		return 'If the server worked, we would have deployed \'%s\'.' % sketch_name
-
-
 def _maybe_create_run_dir(dir):
 	"""Create a run directory if needed."""
 	
@@ -131,9 +100,16 @@ def _sanitize_repo_name(name):
 		return name
 
 
+def get_push_id():
+	"""Read and return the current push id."""
+	with open(PUSH_ID_FILE) as f:
+		return d.readline()
+
+
 def main():
-	server = WallmountServer(CONFIG_FILE)
-	server.start()
+	#server = WallmountServer(CONFIG_FILE)
+	#server.start()
+	print PUSH_ID_FILE
 
 
 if __name__ == '__main__':
