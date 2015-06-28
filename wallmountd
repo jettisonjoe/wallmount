@@ -5,7 +5,8 @@
 
 wallmountd is a daemon that serves p5js sketches. It is controlled by the
 companion command line utility, 'wallmount' over RPC. The HTTP and RPC
-components listen on separate ports.
+components listen on separate ports. Because it relies on shell commands (in
+particular, 'git'), wallmountd is designed to work in linux-like environments.
 
 TODO: Build the website to deploy.
 TODO: Set the last-updated time.
