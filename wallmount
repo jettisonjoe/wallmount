@@ -4,54 +4,71 @@
 """ wallmount
 
 wallmount is a command line tool to deploy p5js sketches in conjunction with a
-companion wallmount server, wallmountd. It controls the server via RPC.
+companion wallmount server, wallmountd. Because it relies on shell utilities
+such as rsync, it is designed for use in a linux-like environment.
 
-TODO: Remove RPC stuff.
-TODO: Look for .wallmount config file.
-TODO: Generate .wallmount_push_id file.
 TODO: rsync directory to server.
-TODO: Delete .wallmount_push_id file.
 
 """
 
-# SERVER_URL = 'http://192.168.1.39:8000/wallmount'
-SERVER_URL = 'http://localhost:8000/wallmount'
-
-
+import calendar
 import shutil
-import socket
 import sys
-import xmlrpclib
+import time
 
 
-def print_usage_and_exit():
-	print '\n' \
-	      'wallmount [sketch_name]\n' \
-	      '\n' \
-	      'sketch_name: Filename of a p5js script in the configured repo.\n'
-	sys.exit()
+PUSH_ID_FILE = '.wallmount_push_id'
+SERVER = '192.168.1.39'
 
 
-def request_deploy(sketch_name):
-	print 'Requesting deployment of \'%s\'.' % sketch_name
-	server = xmlrpclib.Server(SERVER_URL)
-	try:
-		response = server.deploy_sketch(sketch_name)
-	except socket.error as e:
-		print 'Unable to connect to wallmount server at \'%s\':\n' \
-		      '%s' % (SERVER_URL, e)
-		sys.exit()
-	if response is not None:
-		print 'Connected to wallmount server, but unable to deploy:\n' \
-		      '%s' % response
-		sys.exit()
-	print "Deployment appeared successful!"
+def push():
+	"""Push a sketch."""
+	print 'Attempting to push sketch from the current directory.'
+	
+	config_file = find_config_file()
+	if config_file is None:
+		print 'Unable to find a .wallmount_config file from this directory.'
+		return False
+	print 'Found config file at: %s' % config_file
+	
+	project_path = None
+	with open(config_file) as f:
+		project_path = f.readline().rstrip()
+	if not os.path.exists(project_path):
+		print 'Unable to read a valid project path from config file.'
+		return False
+
+	push_id_file = os.path.join(project_path, PUSH_ID_FILE)
+	with open(push_id_file, 'w+') as f:
+		f.write(generate_push_id())
+
+	# TODO: rsync
+
+	os.remove(push_id_file)
+	return True
 
 
-def main(argv):
-	if len(argv) is not 2:
-		print_usage_and_exit()
-	request_deploy(argv[1])
+def find_config_file():
+	"""Walk up from the cwd looking for a config file."""
+	search_dir = os.getcwd()
+	while search_dir.count(os.sep) > 2:
+		candidate = os.path.join(search_dir, PUSH_ID_FILE)
+		if os.path.isfile(candidate):
+			return candidate
+		search_dir = os.path.abspath(os.path.join(search_dir, os.pardir))
+	return None
+
+
+def generate_push_id():
+	"""Generate a pseudo-unique push id."""
+	return calendar.timegm(time.gmtime())
+
+
+def main(unused_argv):
+	if push():
+		print 'Push appeared successful!'
+	else:
+		print 'Push failed.'
 
 
 if __name__ == '__main__':

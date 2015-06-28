@@ -3,10 +3,11 @@
 
 """ wallmountd
 
-wallmountd is a daemon that serves p5js sketches. It monitors a project
-directory for changes and sets a last-updated time accordingly. It inserts a
-script into the served index page to enable self-update on the client. It is
-designed to run in a linux-like environment.
+wallmountd is a daemon that serves p5js sketches. It monitors a push id file
+written whenever a new version of the project is pushed to the server, and
+updates the served contents if there has been a new push since the last update.
+It inserts a script into the served index page to enable self-update on the
+client. It is designed to run in a linux-like environment.
 
 TODO: Monitor project push id file for changes.
 TODO: Insert update script into the served index page.
@@ -14,9 +15,10 @@ TODO: Set the last-updated time.
 TODO: Save and restore state.
 TODO: Handle requests for last-updated time.
 TODO: Handle requests for the sketch page.
+TODO: Lock
 """
 
-import datetime
+import calendar
 import logging
 import os
 import shutil
@@ -28,8 +30,7 @@ INDEX_PAGE = 'index.html'
 LOGGER = logging.getLogger('wallmountd')
 ROOT_DIR = os.path.join(os.sep, 'var', 'run', 'wallmountd', 'www')
 PROJECT_SUBDIR = 'sketch'
-PUSH_ID_FILE = os.path.join(os.sep,
-										        ROOT_DIR,
+PUSH_ID_FILE = os.path.join(ROOT_DIR,
 										        PROJECT_SUBDIR,
 										        '.wallmount_push_id')
 
