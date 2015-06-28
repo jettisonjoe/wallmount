@@ -1,6 +1,24 @@
 #!/usr/bin/env python
 
 
+""" wallmountd
+
+wallmountd is a daemon that serves p5js sketches. It is controlled by the
+companion command line utility, 'wallmount' over RPC. The HTTP and RPC
+components listen on separate ports.
+
+TODO: Build the website to deploy.
+TODO: Set the last-updated time.
+TODO: Return None if successful.
+TODO: Return useful messages on failure.
+TODO: Save and restore state.
+
+TODO: Handle HTTP requests and XML-RPC requests simultaneously.
+TODO: Add p5js to the repository static files.
+TODO: Handle requests for last-updated time.
+TODO: Handle requests for the sketch page.
+"""
+
 import logging
 import ConfigParser
 import os
@@ -16,18 +34,8 @@ CONFIG_FILE = 'wallmountd.conf'
 LOGGER = logging.getLogger('wallmountd')
 RUN_DIR = os.path.join(os.sep, 'var', 'run', 'wallmountd')
 
+
 logging.basicConfig()
-
-
-# TODO: Build the website to deploy.
-# TODO: Set the last-updated time.
-# TODO: Return None if successful.
-# TODO: Return useful messages on failure.
-
-# TODO: Handle HTTP requests and XML-RPC requests simultaneously.
-# TODO: Add p5js to the repository static files.
-# TODO: Handle requests for last-updated time.
-# TODO: Handle requests for the sketch page.
 
 
 class RepoNameError(Exception):
@@ -38,7 +46,7 @@ class RunDirectoryError(Exception):
 	"""Raised if the run directory path exists but isn't a directory."""
 
 
-class WallmountServer:
+class WallmountServer(object):
 	"""Main class for wallmountd.
 
 	Takes care of setup and instantiation for both the XML-RPC and the web server
