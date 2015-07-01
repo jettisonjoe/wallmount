@@ -12,47 +12,46 @@ TODO: rsync directory to server.
 """
 
 import calendar
-import shutil
+import os
+import subprocess
 import sys
 import time
 
 
-PUSH_ID_FILE = '.wallmount_push_id'
-SERVER = '192.168.1.39'
+DOTFILE = '.wallmount'
+SERVER = 'marahute'
+SERVER_PORT = '2200'
+SERVER_PATH = '/usr/local/wallmount'
 
 
 def push():
 	"""Push a sketch."""
 	print 'Attempting to push sketch from the current directory.'
 	
-	config_file = find_config_file()
-	if config_file is None:
-		print 'Unable to find a .wallmount_config file from this directory.'
+	dotfile = find_dotfile()
+	if dotfile is None:
+		print 'Unable to find a .wallmount file from this directory.'
 		return False
-	print 'Found config file at: %s' % config_file
+	print 'Found config file at:\n%s' % dotfile
 	
-	project_path = None
-	with open(config_file) as f:
-		project_path = f.readline().rstrip()
-	if not os.path.exists(project_path):
-		print 'Unable to read a valid project path from config file.'
-		return False
-
-	push_id_file = os.path.join(project_path, PUSH_ID_FILE)
-	with open(push_id_file, 'w+') as f:
+	with open(dotfile, 'w') as f:
 		f.write(generate_push_id())
 
-	# TODO: rsync
-
-	os.remove(push_id_file)
+	push_dir = os.path.dirname(dotfile)
+	result = os.system('rsync -va --delete --dry-run '
+		                 '-e \"ssh -p%s\" '
+		                 '%s %s:%s' % (SERVER_PORT, push_dir, SERVER, SERVER_PATH))
+	if result != 0:
+		print 'Unable to sync files to the server.'
+		return False
 	return True
 
 
-def find_config_file():
-	"""Walk up from the cwd looking for a config file."""
+def find_dotfile():
+	"""Walk up from the cwd looking for a .wallmount file."""
 	search_dir = os.getcwd()
 	while search_dir.count(os.sep) > 2:
-		candidate = os.path.join(search_dir, PUSH_ID_FILE)
+		candidate = os.path.join(search_dir, DOTFILE)
 		if os.path.isfile(candidate):
 			return candidate
 		search_dir = os.path.abspath(os.path.join(search_dir, os.pardir))
@@ -61,7 +60,7 @@ def find_config_file():
 
 def generate_push_id():
 	"""Generate a pseudo-unique push id."""
-	return calendar.timegm(time.gmtime())
+	return str(calendar.timegm(time.gmtime()))
 
 
 def main(unused_argv):
