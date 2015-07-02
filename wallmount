@@ -1,14 +1,22 @@
 #!/usr/bin/env python
 
 
+##########################################
+#  Customizable Configuration Variables  #
+##########################################
+
+SERVER = 'marahute'
+SERVER_PORT = '2200'
+USER = 'joe'
+
+##########################################
+
+
 """ wallmount
 
 wallmount is a command line tool to deploy p5js sketches in conjunction with a
 companion wallmount server, wallmountd. Because it relies on shell utilities
 such as rsync, it is designed for use in a linux-like environment.
-
-TODO: rsync directory to server.
-
 """
 
 import calendar
@@ -19,9 +27,7 @@ import time
 
 
 DOTFILE = '.wallmount'
-SERVER = 'marahute'
-SERVER_PORT = '2200'
-SERVER_PATH = '/usr/local/wallmount'
+SERVER_PATH = '/usr/local/wallmount/inbox'
 
 
 def push():
@@ -38,9 +44,10 @@ def push():
 		f.write(generate_push_id())
 
 	push_dir = os.path.dirname(dotfile)
-	result = os.system('rsync -va --delete --dry-run '
-		                 '-e \"ssh -p%s\" '
-		                 '%s %s:%s' % (SERVER_PORT, push_dir, SERVER, SERVER_PATH))
+	result = os.system(
+			'rsync -a --delete --dry-run '
+		  '-e \"ssh -p%s\" '
+		  '%s %s@%s:%s' % (SERVER_PORT, push_dir, USER, SERVER, SERVER_PATH))
 	if result != 0:
 		print 'Unable to sync files to the server.'
 		return False
