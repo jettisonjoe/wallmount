@@ -17,6 +17,9 @@ USER = 'joe'
 wallmount is a command line tool to deploy p5js sketches in conjunction with a
 companion wallmount server, wallmountd. Because it relies on shell utilities
 such as rsync, it is designed for use in a linux-like environment.
+
+TODO: Use XMLRPC to tell the server to update and block until it's done.
+TODO: Maybe reduce verbosity.
 """
 
 import calendar

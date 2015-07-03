@@ -1,16 +1,9 @@
-#!/usr/bin/env python
-
-
 """ wallmountd
 
-wallmountd is a daemon that serves p5js sketches. It monitors a push id file
-written whenever a new version of the project is pushed to the server, and
-updates the served contents if there has been a new push since the last update.
-It inserts a script into the served index page to enable self-update on the
-client. It is designed to run in a linux-like environment.
+wallmountd is a daemon that serves p5js sketches. It is designed to run in a
+linux-like environment.
 
-TODO: Monitor project push id file for changes.
-TODO: Insert update script into the served index page.
+TODO: Put back XMLRPC code.
 TODO: Set the last-updated time.
 TODO: Save and restore state.
 TODO: Handle requests for last-updated time.
@@ -21,10 +14,16 @@ TODO: Lock
 import calendar
 import logging
 import os
+import signal
 import shutil
 import subprocess
+import sys
 import time
 
+from daemonize import Daemonize
+
+
+PIDFILE = '/var/run/wallmound.pid'
 
 INDEX_PAGE = 'index.html'
 LOGGER = logging.getLogger('wallmountd')
@@ -71,12 +70,12 @@ class WallmountServer(object):
 		
 		print self.source_repo_path
 		print self.source_repo_url
-		_maybe_create_run_dir(RUN_DIR)
+		maybe_create_run_dir(RUN_DIR)
 		self._update_repo()
 		# self.rpc_server.serve_forever()
 
 
-def _maybe_create_run_dir(dir):
+def maybe_create_run_dir(dir):
 	"""Create a run directory if needed."""
 	
 	if os.path.exists(RUN_DIR):
@@ -86,7 +85,7 @@ def _maybe_create_run_dir(dir):
 	os.mkdir(dir)
 
 
-def _sanitize_repo_name(name):
+def sanitize_repo_name(name):
 		"""Make sure there are no special characters in the repo name.
 
 		We don't want to accidentally walk up the file tree from our RUN_DIR
@@ -107,6 +106,17 @@ def get_push_id():
 		return d.readline()
 
 
+def print_usage_and_exit():
+	print ('wallmountd - a server for wall-mounted p5js sketches.\n'
+		     'usage: wallmountd <start|status|stop>')
+	sys.exit()
+
+
+def get_pid():
+	with open(PIDFILE) as f:
+		return f.readline()
+
+
 def main():
 	#server = WallmountServer(CONFIG_FILE)
 	#server.start()
@@ -114,4 +124,22 @@ def main():
 
 
 if __name__ == '__main__':
-	main()
+	if len sys.argv != 2 or sys.argv[1] not in ['start', 'status', 'stop']:
+		print_usage_and_exit()
+	cmd = sys.argv[1]
+	if cmd == 'start':
+		daemon = Daemonize(app='wallmountd', pid=PIDFILE, action=main)
+		daemon.start()
+	elif cmd == 'stop':
+		os.kill(get_pid(), signal.SIGTERM)
+	elif cmd == 'status':
+		running_pid = ''
+		try:
+			running_pid = subprocess.check_output(['pgrep', 'wallmountd']).rstrip()
+		except CalledProcessError:
+			print 'wallmountd is stopped.'
+			return
+		if running_pid != get_pid():
+			print 'wallmountd is borked.'
+			return
+		print 'wallmountd is running with PID %s.' % running_pid
