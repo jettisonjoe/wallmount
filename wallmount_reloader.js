@@ -1,6 +1,6 @@
 var wallmount_reloader = function () {
     var SOURCE_URL = "http://192.168.1.39:8000/sketch";
-    var last_push_id = "no_id";
+    var last_push_id = "NOID";
     setInterval(maybe_reload, 5000);
 
     function maybe_reload() {

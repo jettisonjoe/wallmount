@@ -77,7 +77,6 @@ class WallmountServer(object):
 
 def maybe_create_run_dir(dir):
 	"""Create a run directory if needed."""
-	
 	if os.path.exists(RUN_DIR):
 		if os.path.isdir(RUN_DIR):
 			return
@@ -90,12 +89,11 @@ def sanitize_repo_name(name):
 
 		We don't want to accidentally walk up the file tree from our RUN_DIR
 		and delete arbitrary things, so no characters that cause path expansion."""
-
-		if True in [c in name for c in ('./:*$')]:
-			LOGGER.error('Repo names must not contain special characters.')
+		if any(c in name for c in './:*$'):
+			LOGGER.critical('Repo names must not contain path expansion characters.')
 			raise RepoNameError('Bad repo name: \'%s\'.' % name)
 		if name in ['wallmount', 'wallmountd', 'www']:
-			LOGGER.error('Repo name conflicts with wallmountd\'s own namespace.')
+			LOGGER.critical('Repo name conflicts with wallmountd\'s own namespace.')
 			raise RepoNameError('Bad repo name: \'%s\'.' % name)
 		return name
 
