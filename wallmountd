@@ -1,8 +1,8 @@
 #!/bin/sh
 
 
-# Taken from Jonas Friedmann's example startup scripts at:
-# https://github.com/frdmn/service-daemons
+# Generic SysVinit-compatible startup script taken from Jonas Friedmann's
+# example scripts (https://github.com/frdmn/service-daemons).
 
 
 ### BEGIN INIT INFO
@@ -17,11 +17,11 @@
 
 NAME="wallmountd"
 PATH="/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin"
-APPDIR="/"
-APPBIN="/usr/bin/python"
-APPARGS="/usr/local/wallmountd/wallmountd.py"
-USER="wallmount"
-GROUP="wallmount"
+APPDIR="usr/local/wallmountd"
+APPBIN="./bin/python"
+APPARGS="wallmountd.py"
+USER="wallmountd"
+GROUP="wallmountd"
 
 # Include functions 
 set -e

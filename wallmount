@@ -14,14 +14,14 @@ current working directory, but not too close to the top of the filesystem tree.
 
 Example config:
 
-		[server]
-		address = 192.168.1.39
-		http_port = 8000
-		ssh_port = 2200
-		ssh_user = joe
+    [server]
+    address = 192.168.1.39
+    http_port = 8000
+    ssh_port = 2200
+    ssh_user = joe
 
-		[sketch]
-		index = index.html
+    [sketch]
+    index = index.html
 
 Talk to your server administrator for your server's details.
 """
@@ -31,93 +31,95 @@ import logging
 import os
 import subprocess
 import sys
+import urllib
+import urllib2
 import uuid
 
 
 CONF = ConfigParser.SafeConfigParser()
 DOTFILE = '.wallmount'
 LOGGER = logging.getLogger('wallmount')
-SERVER_INBOX = os.path.join('usr', 'local', 'wallmount', 'inbox')
+SERVER_INBOX = os.path.join('usr', 'local', 'wallmountd', 'inbox')
 
 
 class NoConfigFileError(Exception):
-	"""Raised if no config file can be found at a reasonable filesystem depth."""
+  """Raised if no config file can be found at a reasonable filesystem depth."""
 
 
 class PushFailedError(Exception):
-	"""Raised when a push attempt fails."""
+  """Raised when a push attempt fails."""
 
 
 def push(src_path):
-	"""Push a sketch."""
-	LOGGER.info('Attempting to push sketch from %s.' % src_path)
-	
-	server = CONF.get('server', 'address')
-	url = ''.join('http://',
-		            server,
-		            ':',
-		            CONF.get('server', 'http_port')
-		            '/push')
-	data = {'push_id': uuid.uuid4().hex,
-			    'index_path': CONF.get('sketch', 'index'),
-			    'command': 'START'}
+  """Push a sketch."""
+  LOGGER.info('Attempting to push sketch from %s.' % src_path)
+  
+  server = CONF.get('server', 'address')
+  url = ''.join(('http://',
+                server,
+                ':',
+                CONF.get('server', 'http_port'),
+                '/push'))
+  data = {'push_id': uuid.uuid4().hex,
+          'index_path': CONF.get('sketch', 'index'),
+          'command': 'START'}
 
-	LOGGER.info('Requesting clearance to push to %s.' % server)
-	try:
-		req = urllib2.Request(url, urllib.urlencode(data))
-		response = urllib2.urlopen(req)
-		if response.getcode() != 200:
-			raise PushFailedError('Server denied the push.')
-	except URLError:
-		raise PushFailedError('Server is unreachable.')
-	
-	dest_path = os.path.join(SERVER_INBOX, data['push_id'])
-	try:
-		subprocess.check_call(
-				['scp',
-				 '-P', CONF.get('server', 'ssh_port'),
-				 src_path,
-				 '%s@%s:%s' % (CONF.get('server', 'ssh_user'),
-				  	           server,
-				 		           dest_path),
-				 ])
-	except CalledProcessError:
-		raise PushFailedError('Unable to send files to the server.')
+  LOGGER.info('Requesting clearance to push to %s.' % server)
+  try:
+    req = urllib2.Request(url, urllib.urlencode(data))
+    response = urllib2.urlopen(req)
+    if response.getcode() != 200:
+      raise PushFailedError('Server denied the push.')
+  except urllib2.URLError:
+    raise PushFailedError('Server is unreachable.')
+  
+  dest_path = os.path.join(SERVER_INBOX, data['push_id'])
+  try:
+    subprocess.check_call(
+        ['scp',
+         '-P', CONF.get('server', 'ssh_port'),
+         src_path,
+         '%s@%s:%s' % (CONF.get('server', 'ssh_user'),
+                       server,
+                       dest_path),
+         ])
+  except CalledProcessError:
+    raise PushFailedError('Unable to send files to the server.')
 
-	LOGGER.info('Notifying server that file transfer finished.')
-	try:
-		data['command'] = 'FINISH'
-		req = urllib2.Request(url, urllib.urlencode(data))
-		response = urllib2.urlopen(req)
-		if response.getcode() != 200:
-			raise PushFailedError('Server unable to acknowledge transfer complete.')
-	except URLError:
-		raise PushFailedError('Unanticipated server disconnect.')
+  LOGGER.info('Notifying server that file transfer finished.')
+  try:
+    data['command'] = 'FINISH'
+    req = urllib2.Request(url, urllib.urlencode(data))
+    response = urllib2.urlopen(req)
+    if response.getcode() != 200:
+      raise PushFailedError('Server unable to acknowledge transfer complete.')
+  except URLError:
+    raise PushFailedError('Unanticipated server disconnect.')
 
-	LOGGER.info('Push appeared successful!')
+  LOGGER.info('Push appeared successful!')
 
 
 def find_dotfile():
-	"""Walk up from the cwd looking for a configuration file.
+  """Walk up from the cwd looking for a configuration file.
 
-	Raise an exception if we get within 2 levels of the top of the filesystem
-	tree without finding one.
-	"""
-	search_dir = os.getcwd()
-	while search_dir.count(os.sep) > 2:
-		candidate = os.path.join(search_dir, DOTFILE)
-		if os.path.isfile(candidate):
-			return candidate
-		search_dir = os.path.abspath(os.path.join(search_dir, os.pardir))
-	raise NoConfigFileError('Unable to find a .wallmount file.')
+  Raise an exception if we get within 2 levels of the top of the filesystem
+  tree without finding one.
+  """
+  search_dir = os.getcwd()
+  while search_dir.count(os.sep) > 2:
+    candidate = os.path.join(search_dir, DOTFILE)
+    if os.path.isfile(candidate):
+      return candidate
+    search_dir = os.path.abspath(os.path.join(search_dir, os.pardir))
+  raise NoConfigFileError('Unable to find a .wallmount file.')
 
 
-def main(unused_argv):
-	dotfile = find_dotfile()
-	push_directory = os.path.dirname(dotfile)
-	CONF.read(dotfile)
-	push(push_directory)
+def main(dummy_argv):
+  dotfile = find_dotfile()
+  push_directory = os.path.dirname(dotfile)
+  CONF.read(dotfile)
+  push(push_directory)
 
 
 if __name__ == '__main__':
-	main(sys.argv)
+  main(sys.argv)
