@@ -2,13 +2,6 @@
 
 wallmountd is a daemon that serves p5js sketches. It is designed to run in a
 linux-like environment.
-
-TODO: Put back XMLRPC code.
-TODO: Set the last-updated time.
-TODO: Save and restore state.
-TODO: Handle requests for last-updated time.
-TODO: Handle requests for the sketch page.
-TODO: Lock
 """
 
 import calendar
