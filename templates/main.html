@@ -1,0 +1,42 @@
+<html>
+<head>
+<script type="text/javascript">
+  var latest_push = {{ push_id }};
+  
+  function ajax(url, method, message, callback) {
+    var request = new XMLHttpRequest();
+    request.onreadystatechange = function() {
+        if (request.readyState == XMLHttpRequest.DONE ) {
+           if(request.status == 200){
+               callback(request.responseText);
+           }
+         }
+    }
+    request.open(method, url, true);
+    request.send(message);
+  }
+
+  function refresh_sketch() {
+    var iframe = document.getElementById('sketch_iframe');
+    iframe.src = '/static/sketch/index.html';
+  }
+
+  function poll() {
+    ajax('/id', 'GET', '', function(push_id) {
+      if (push_id !== latest_push) {
+        latest_push = push_id;
+        refresh_sketch()
+      }
+    });
+  }
+
+  function setup(){
+    setInterval(poll, 5000);  
+  }
+  
+</script>
+</head>
+<body onload="setup()">
+  <iframe id='sketch_iframe'></iframe>
+</body>
+</html>

@@ -20,9 +20,6 @@ Example config:
     ssh_port = 2200
     ssh_user = joe
 
-    [sketch]
-    index = index.html
-
 Talk to your server administrator for your server's details.
 """
 
@@ -40,6 +37,8 @@ CONF = ConfigParser.SafeConfigParser()
 DOTFILE = '.wallmount'
 LOGGER = logging.getLogger('wallmount')
 SERVER_INBOX = os.path.join('usr', 'local', 'wallmountd', 'inbox')
+OVERRIDE = False
+# OVERRIDE = True
 
 
 class NoConfigFileError(Exception):
@@ -61,11 +60,16 @@ def push(src_path):
                 CONF.get('server', 'http_port'),
                 '/push'))
   data = {'push_id': uuid.uuid4().hex,
-          'index_path': CONF.get('sketch', 'index'),
-          'command': 'START'}
+          'command': ''}
+
+  if OVERRIDE:
+    LOGGER.warning('Attempting manual override!')
+    data['command'] = 'OVERRIDE'
+    urllib2.urlopen(urllib2.Request(url, urllib.urlencode(data)))
 
   LOGGER.info('Requesting clearance to push to %s.' % server)
   try:
+    data['command'] = 'START'
     req = urllib2.Request(url, urllib.urlencode(data))
     response = urllib2.urlopen(req)
     if response.getcode() != 200:
