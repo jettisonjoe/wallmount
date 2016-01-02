@@ -3,27 +3,54 @@
 
 """ wallmount
 
-wallmount is a command line tool to deploy p5js sketches in conjunction with a
-companion wallmount server, wallmountd. Because it relies on the scp shell
-utility, it is designed for use in a linux-like environment. Additionally, you
-must have ssh access to the wallmount server system in order for the file
-transfer to succeed.
+wallmount is a command-line tool to deploy static web content to any low-touch
+web-capable display surface (for instance, a wall-mounted display backed by a
+Chromebox). It is used in conjunction with a companion wallmount server daemon,
+called wallmountd. Because it relies on the rsync shell utility, it is designed
+for use in a linux-like environment (OSX and Babun should work fine).
 
-This tool requires a config file named '.wallmount' somewhere at or above the
+wallmount requires a config file named '.wallmount' somewhere at or above the
 current working directory, but not too close to the top of the filesystem tree.
+The config file must contain a '[wallmount]' section with the necessary info
+about the wallmountd server (address, http port, and ssh port), as well as a
+section for each target you wish to be able to deploy.
+
+Each target's section should define a (newline-delimited) list of source files
+needed, and the path to the index page (which page the display surface web
+browser should be directed to). Source file paths will be treated as relative
+to the location of the .wallmount config file itself.
 
 Example config:
 
-    [server]
+    [wallmount]
     address = 192.168.1.39
     http_port = 8000
     ssh_port = 2200
-    ssh_user = joe
 
-Talk to your server administrator for your server's details.
+    [coolsite]
+    files = cool.html
+            css/styles.css
+            js/cool_script.js
+    index = cool.html
+
+Once the config file is written, deployment of a target is simple:
+
+    wallmount <target_name>
+
+For the example site in the config file above, this would be:
+
+    wallmount coolsite
+
+A note on paths: The wallmount tool cannot know the absolute path where deployed
+targets will end up on the wallmountd server. Thus only *relative* paths should
+be used in target source code. Directory structures below the .wallmount file
+will be reconstructed on the wallmountd server to preserve the validity of
+relative paths.
+
 """
 
 import ConfigParser
+import getpass
 import logging
 import os
 import subprocess
@@ -33,12 +60,7 @@ import urllib2
 import uuid
 
 
-CONF = ConfigParser.SafeConfigParser()
-DOTFILE = '.wallmount'
-LOGGER = logging.getLogger('wallmount')
-SERVER_INBOX = os.path.join('usr', 'local', 'wallmountd', 'inbox')
-OVERRIDE = False
-# OVERRIDE = True
+_LOG = logging.getLogger('wallmount')
 
 
 class NoConfigFileError(Exception):
@@ -49,80 +71,134 @@ class PushFailedError(Exception):
   """Raised when a push attempt fails."""
 
 
-def push(src_path):
-  """Push a sketch."""
-  LOGGER.info('Attempting to push sketch from %s.' % src_path)
-  
-  server = CONF.get('server', 'address')
-  url = ''.join(('http://',
-                server,
-                ':',
-                CONF.get('server', 'http_port'),
-                '/push'))
-  data = {'push_id': uuid.uuid4().hex,
-          'command': ''}
+class Config(ConfigParser.SafeConfigParser):
+  """Configuration file finding, parsing, and access."""
+  _CONFIG_FILENAME = '.wallmount'
 
-  if OVERRIDE:
-    LOGGER.warning('Attempting manual override!')
-    data['command'] = 'OVERRIDE'
-    urllib2.urlopen(urllib2.Request(url, urllib.urlencode(data)))
+  @classmethod
+  def find_config_file(cls):
+    """Walk up from the cwd looking for a configuration file.
 
-  LOGGER.info('Requesting clearance to push to %s.' % server)
-  try:
-    data['command'] = 'START'
-    req = urllib2.Request(url, urllib.urlencode(data))
-    response = urllib2.urlopen(req)
-    if response.getcode() != 200:
-      raise PushFailedError('Server denied the push.')
-  except urllib2.URLError:
-    raise PushFailedError('Server is unreachable.')
-  
-  dest_path = os.path.join(SERVER_INBOX, data['push_id'])
-  try:
-    subprocess.check_call(
-        ['scp',
-         '-P', CONF.get('server', 'ssh_port'),
-         src_path,
-         '%s@%s:%s' % (CONF.get('server', 'ssh_user'),
-                       server,
-                       dest_path),
-         ])
-  except CalledProcessError:
-    raise PushFailedError('Unable to send files to the server.')
+    Raise an exception if we get within 2 levels of the top of the filesystem
+    tree without finding one.
+    """
+    search_dir = os.getcwd()
+    while search_dir.count(os.sep) > 2:
+      candidate = os.path.join(search_dir, _CONFIG_FILENAME)
+      if os.path.isfile(candidate):
+        return candidate
+      search_dir = os.path.abspath(os.path.join(search_dir, os.pardir))
+    raise NoConfigFileError('Unable to find a "%s" file.' % _CONFIG_FILENAME)
 
-  LOGGER.info('Notifying server that file transfer finished.')
-  try:
-    data['command'] = 'FINISH'
-    req = urllib2.Request(url, urllib.urlencode(data))
-    response = urllib2.urlopen(req)
-    if response.getcode() != 200:
-      raise PushFailedError('Server unable to acknowledge transfer complete.')
-  except URLError:
-    raise PushFailedError('Unanticipated server disconnect.')
+  def __init__(self):
+    super(Config, self).__init___()
+    self._filename = self.find_config_file()
+    self.basedir = os.path.dirname(self._filename)
+    self.read(self._filename)
 
-  LOGGER.info('Push appeared successful!')
+  def get_src_names(self, target_name):
+    """Return a list of source filenames for the given target."""
+    paragraph = self._config.get(target, 'files')
+    return filter(None, [line.strip() for line in paragraph.splitlines()])
 
 
-def find_dotfile():
-  """Walk up from the cwd looking for a configuration file.
+class Push(Object):
+  """Encapsulates a single push of a target to a wallmountd server.
 
-  Raise an exception if we get within 2 levels of the top of the filesystem
-  tree without finding one.
+  Args:
+    config: A Config() with server and target information.
+    target_name: Names which target in the config is to be pushed.
   """
-  search_dir = os.getcwd()
-  while search_dir.count(os.sep) > 2:
-    candidate = os.path.join(search_dir, DOTFILE)
-    if os.path.isfile(candidate):
-      return candidate
-    search_dir = os.path.abspath(os.path.join(search_dir, os.pardir))
-  raise NoConfigFileError('Unable to find a .wallmount file.')
+  def __init__(self, config, target_name):
+    super(Push, self).__init__()
+    self._config = config
+    self._target_name = target_name
+    self._base_url = 'http://%s:%s' % (self._config.get('server', 'address'),
+                                       self._config.get('server', 'http_port'))
+    self._id = uuid.uuid4().hex
+    self._user = getpass.getuser()
+
+  def initiate(self, force=False):
+    """Push our target to the wallmountd server."""
+    _LOG.info('Attempting to push target "%s" to server at %s.' % (
+        self._target_name, self._base_url))
+
+    if force:
+      _LOG.warning('Forced push requested. Sending RESET command.')
+      self._send_command('RESET')
+
+    _LOG.debug('Sending START command.')
+    dst = self._send_command('START')
+
+    _LOG.debug('Transmitting target files.')
+    self._transmit_files(dst)
+
+    _LOG.debug('Sending FINISH command.')
+    push_id = self._send_command('FINISH')
+    if push_id != self._id:
+      raise CommandFailedError('Push ID mismatch! Possible server error.')
+
+    _LOG.debug('Push %s appeared successful.' % push_id)
+
+  def _send_command(self, command):
+    """POST a command to the wallmountd server.
+
+    Args:
+      command: String command to send ('START', 'FINISH', or 'RESET').
+    Returns:
+      The command-specific response received from the server:
+        START: The file path to the server's wallmountd inbox.
+        FINISH: The push_id of the completed push.
+        RESET: The string 'RESET'.
+    """
+    url = '%s/push' % self._base_url
+    data = {'command': command,
+            'index': self._config.get(self._target_name, 'index'),
+            'push_id': self._id,
+            'target_name': self._target_name,
+            'user': self._user}
+    try:
+      req = urllib2.Request(url, urllib.urlencode(data))
+      response = urllib2.urlopen(req)
+      if response.getcode() != 200:
+        raise CommandFailedError(
+            'Server at %s failed to answer the %s command.' % (
+                self._base_url, command))
+      code, text = response.read().split()
+      if code != 'OK':
+        raise CommandFailedError('Server at %s returned an error: %s' % (
+            self._base_url, text))
+      return text
+    except urllib2.URLError:
+      raise PushFailedError(
+          'Server at %s is unreachable.', self._base_url)
+
+  def _transmit_files(self, inbox_path):
+    """Transmit the target's files to the wallmountd server.
+    
+    Args:
+      inbox_path: File path to the wallmountd server's inbox directory.
+    """
+    dst_root = os.path.join(inbox_path, self._id)
+    filenames = self._config.get_src_names()
+    try:
+      # TODO: Fill in a working rsync command.
+      subprocess.check_call(
+          ['rsync',
+          ])
+    except CalledProcessError as e:
+      _LOG.error('Unable to transmit files to the server. Attempting to abort.')
+      self._send_command('RESET')
+      raise PushFailedError('Push aborted: %s' % e)
 
 
 def main(dummy_argv):
-  dotfile = find_dotfile()
-  push_directory = os.path.dirname(dotfile)
-  CONF.read(dotfile)
-  push(push_directory)
+  # TODO: Parse command line arguments.
+  #     target_name
+  #     force
+  # TODO: Configure logging verbosity.
+  push = Push(Config(), target_name)
+  push.initiate(force=force)
 
 
 if __name__ == '__main__':
