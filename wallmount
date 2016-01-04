@@ -73,7 +73,7 @@ class PushFailedError(Exception):
 
 class Config(ConfigParser.SafeConfigParser):
   """Configuration file finding, parsing, and access."""
-  _CONFIG_FILENAME = '.wallmount'
+  CONFIG_FILENAME = '.wallmount'
 
   @classmethod
   def find_config_file(cls):
@@ -84,11 +84,11 @@ class Config(ConfigParser.SafeConfigParser):
     """
     search_dir = os.getcwd()
     while search_dir.count(os.sep) > 2:
-      candidate = os.path.join(search_dir, _CONFIG_FILENAME)
+      candidate = os.path.join(search_dir, CONFIG_FILENAME)
       if os.path.isfile(candidate):
         return candidate
       search_dir = os.path.abspath(os.path.join(search_dir, os.pardir))
-    raise NoConfigFileError('Unable to find a "%s" file.' % _CONFIG_FILENAME)
+    raise NoConfigFileError('Unable to find a "%s" file.' % CONFIG_FILENAME)
 
   def __init__(self):
     super(Config, self).__init___()
@@ -174,7 +174,7 @@ class Push(Object):
           'Server at %s is unreachable.', self._base_url)
 
   def _transmit_files(self, inbox_path):
-    """Transmit the target's files to the wallmountd server.
+    """Transmit the target's files to given directory on the wallmountd server.
     
     Args:
       inbox_path: File path to the wallmountd server's inbox directory.
